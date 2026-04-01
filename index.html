@@ -29,6 +29,12 @@ textarea{resize:vertical;min-height:55px;}
 .progress-bar{height:2px;background:#1a1a35;border-radius:2px;}
 .detail-box{background:#111128;border:1px solid #1a1a35;border-top:none;border-radius:0 0 6px 6px;padding:12px 14px;}
 .check-item{background:#0d0d1a;border:1px solid #1a1a35;border-radius:7px;overflow:hidden;margin-bottom:5px;}
+
+.pw-wrap{position:fixed;inset:0;background:#070710;display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;}
+.pw-card{width:min(420px,100%);background:#0d0d1a;border:1px solid #1a1a35;border-radius:12px;padding:22px;}
+.pw-title{font-family:monospace;letter-spacing:2px;color:#00ff9d;font-size:11px;margin-bottom:8px;}
+.pw-err{font-size:12px;color:#f43f5e;margin-top:10px;font-family:monospace;}
+
 </style>
 </head>
 <body>
@@ -97,6 +103,20 @@ const INIT=[
   {id:20,date:"01-04-26",imported:true,wins:2,losses:1,green:195.98,red:12.78,dayNotes:""},
 ];
 
+
+const AUTH_KEY="orb5_auth_v1";
+const APP_PASSWORD="Orb5trategy";
+function isAuthed(){try{return sessionStorage.getItem(AUTH_KEY)==="1";}catch{return false;}}
+function showPasswordGate(err=""){
+  document.getElementById("app").innerHTML=`<div class="pw-wrap"><div class="pw-card"><div class="pw-title">ORB5 PRIVATE ACCESS</div><div style="font-size:22px;color:#e8edf5;margin-bottom:8px">Enter password</div><div style="font-size:12px;color:#8892a4;line-height:1.6;margin-bottom:14px">This journal runs locally in your browser. Enter your password to continue.</div><input id="pwInput" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')submitPassword()" /><button class="btn-primary" onclick="submitPassword()" style="margin-top:12px;background:linear-gradient(135deg,#00ff9d20,#4ecdc420);border:1px solid #00ff9d50;color:#00ff9d">UNLOCK</button>${err?`<div class="pw-err">${err}</div>`:""}</div></div>`;
+  setTimeout(()=>{const el=document.getElementById('pwInput'); if(el) el.focus();},30);
+}
+window.submitPassword=function(){
+  const v=(document.getElementById('pwInput')||{}).value||"";
+  if(v===APP_PASSWORD){try{sessionStorage.setItem(AUTH_KEY,"1");}catch{} renderApp();}
+  else showPasswordGate("Incorrect password");
+};
+
 // ── State ──────────────────────────────────────────────────────────────────
 const lsG=k=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):null;}catch{return null;}};
 const lsS=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}};
@@ -112,8 +132,8 @@ const S={
   tf:{...E0}
 };
 
-function setState(u){Object.assign(S,u);render();}
-function setTf(u){Object.assign(S.tf,u);render();}
+function setState(u){Object.assign(S,u);if(isAuthed()) renderApp();}
+function setTf(u){Object.assign(S.tf,u);if(isAuthed()) renderApp();}
 function savePaper(){lsS(KEYS.p,S.paper);}
 function saveLive(){lsS(KEYS.l,S.live);}
 function saveCd(){lsS(KEYS.cd,{date:TODAY,checks:S.cd});}
@@ -211,9 +231,9 @@ function viewAdd(acc){
   const pList=pending.length>0?`<div class="card" style="border:1px solid ${acc}20;margin-bottom:12px"><div style="font-size:9px;letter-spacing:3px;color:#4a5568;margin-bottom:8px;font-family:monospace">TRADES ADDED (${pending.length})</div>${pending.map((t,i)=>`<div class="row" style="padding:6px 0;border-bottom:${i<pending.length-1?"1px solid #1a1a3530":"none"}"><div style="display:flex;gap:7px;align-items:center"><span style="font-size:10px;color:${t.result==="win"?acc:"#f43f5e"};font-family:monospace;font-weight:700">${t.result==="win"?"W":"L"}</span>${t.ticker?`<span style="font-size:11px;color:#e8edf5;font-family:monospace">${t.ticker}</span>`:""}<span style="font-size:9px;color:#4a5568;background:#1a1a35;padding:2px 5px;border-radius:3px;font-family:monospace">Gr.${t.grade}</span>${exitSum(t)?`<span style="font-size:9px;color:#8892a4;font-family:monospace">${exitSum(t)}</span>`:""}</div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:${t.result==="win"?acc:"#f43f5e"};font-family:monospace;font-weight:700">${t.result==="win"?"+":"-"}£${t.amount.toFixed(2)}</span><button onclick="removePending(${i})" style="border:1px solid #f43f5e30;background:transparent;color:#f43f5e;border-radius:4px;padding:2px 7px;font-size:9px">✕</button></div></div>`).join("")}<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;padding-top:8px;border-top:1px solid #1a1a35;text-align:center"><div><div style="font-size:13px;color:#00ff9d;font-family:monospace;font-weight:700">${f2(pG)}</div><div style="font-size:9px;color:#4a5568">Green</div></div><div><div style="font-size:13px;color:#f43f5e;font-family:monospace;font-weight:700">${f2(pR)}</div><div style="font-size:9px;color:#4a5568">Red</div></div><div><div style="font-size:13px;font-weight:700;font-family:monospace;color:${(pG-pR)>=0?"#00ff9d":"#f43f5e"}">${fS(pG-pR)}</div><div style="font-size:9px;color:#4a5568">Net</div></div></div></div>`:"";
   const addMoreBtn=!S.showTF&&pending.length>0?`<button onclick="setState({showTF:true})" style="width:100%;background:${acc}12;border:1px solid ${acc}30;color:${acc};padding:10px;font-size:10px;font-family:monospace;border-radius:6px;margin-bottom:12px">+ ADD ANOTHER TRADE</button>`:"";
   const exitBd=`<div style="background:#070710;border:1px solid #1a1a35;border-radius:6px;padding:10px 12px;margin-bottom:10px"><div style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;margin-bottom:8px">EXIT BREAKDOWN — should total 100%</div>${chips("% AT FULL TP",PCT,"tpPct","#00ff9d")}${chips("% STOPPED OUT",PCT,"slPct","#f43f5e")}${chips("% AT BREAKEVEN",PCT,"bePct","#ffd700")}${chips("% EARLY EXIT",PCT,"earlyPct","#f97316")}${exitSum(tf)?`<div style="font-size:11px;color:#4ecdc4;font-family:monospace;margin-top:4px">Summary: ${exitSum(tf)}</div>`:""}</div>`;
-  const tfHtml=S.showTF?`<div class="card" style="border:1px solid ${acc}25;margin-bottom:12px"><div style="font-size:9px;letter-spacing:3px;color:${acc};margin-bottom:12px;font-family:monospace">TRADE DETAILS</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">TICKER</label><input id="t_ticker" placeholder="NVDA" oninput="setTf({ticker:this.value.toUpperCase()})" value="${tf.ticker}" style="text-transform:uppercase"/></div><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">RESULT</label><div style="display:flex;gap:5px">${["win","loss"].map(r=>`<button onclick="setTf({result:'${r}'})" style="flex:1;padding:9px 4px;font-size:11px;background:${tf.result===r?(r==="win"?"#00ff9d18":"#f43f5e18"):"transparent"};color:${tf.result===r?(r==="win"?"#00ff9d":"#f43f5e"):"#4a5568"};border:1px solid ${tf.result===r?(r==="win"?"#00ff9d40":"#f43f5e40"):"#1a1a35"};border-radius:6px;font-weight:${tf.result===r?700:400}">${r==="win"?"WIN":"LOSS"}</button>`).join("")}</div></div></div><div style="margin-bottom:10px"><label style="font-size:9px;color:${tf.result==="win"?"#00ff9d":"#f43f5e"};font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">£ ${tf.result==="win"?"PROFIT":"LOSS"}</label><input id="t_amt" type="number" step="0.01" min="0" placeholder="0.00" oninput="setTf({amount:this.value})" value="${tf.amount}" style="border-color:${tf.result==="win"?"#00ff9d20":"#f43f5e20"}"/></div>${chips("GRADE",["A","B","C"],"grade",acc)}${chips("CATALYST",CATALYSTS,"catalyst","#a78bfa")}<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">RVOL AT ENTRY</label><input id="t_rvol" type="number" step="0.1" min="0" placeholder="e.g. 1.8" oninput="setTf({rvol:this.value})" value="${tf.rvol}"/></div><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">GAP % AT OPEN</label><input id="t_gap" type="number" step="0.1" placeholder="e.g. 2.1" oninput="setTf({gap:this.value})" value="${tf.gap}"/></div></div>${chips("S&P AT ENTRY",["Green","Flat","Red"],"spx","#4ecdc4")}${chips("RETEST QUALITY",["Clean","Multiple","Weak"],"retest","#ffd700")}${exitBd}${tf.result==="loss"?chips("LOSS REASON",LOSS_R,"lossReason","#f43f5e","#f43f5e"):""}<div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">NOTES</label><input id="t_notes" placeholder="Setup notes, what happened..." oninput="setTf({notes:this.value})" value="${tf.notes||""}"/></div>${S.err?`<div style="font-size:11px;color:#f43f5e;font-family:monospace;background:#f43f5e12;padding:7px 10px;border-radius:5px;margin-bottom:10px">${S.err}</div>`:""}<div style="display:flex;gap:8px"><button onclick="addTrade()" style="flex:1;background:${acc}18;border:1px solid ${acc}40;color:${acc};font-weight:700;padding:11px;font-size:11px;border-radius:6px;font-family:monospace">+ ADD TRADE</button>${pending.length>0?`<button onclick="setState({showTF:false})" style="padding:11px 14px;background:transparent;border:1px solid #1a1a35;color:#4a5568;font-size:10px;border-radius:6px;font-family:monospace">Done</button>`:""}</div></div>`:"";
+  const tfHtml=S.showTF?`<div class="card" style="border:1px solid ${acc}25;margin-bottom:12px"><div style="font-size:9px;letter-spacing:3px;color:${acc};margin-bottom:12px;font-family:monospace">TRADE DETAILS</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">TICKER</label><input id="t_ticker" placeholder="NVDA" oninput="S.tf.ticker=this.value.toUpperCase()" value="${tf.ticker}" style="text-transform:uppercase"/></div><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">RESULT</label><div style="display:flex;gap:5px">${["win","loss"].map(r=>`<button onclick="setTf({result:'${r}'})" style="flex:1;padding:9px 4px;font-size:11px;background:${tf.result===r?(r==="win"?"#00ff9d18":"#f43f5e18"):"transparent"};color:${tf.result===r?(r==="win"?"#00ff9d":"#f43f5e"):"#4a5568"};border:1px solid ${tf.result===r?(r==="win"?"#00ff9d40":"#f43f5e40"):"#1a1a35"};border-radius:6px;font-weight:${tf.result===r?700:400}">${r==="win"?"WIN":"LOSS"}</button>`).join("")}</div></div></div><div style="margin-bottom:10px"><label style="font-size:9px;color:${tf.result==="win"?"#00ff9d":"#f43f5e"};font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">£ ${tf.result==="win"?"PROFIT":"LOSS"}</label><input id="t_amt" type="number" step="0.01" min="0" placeholder="0.00" oninput="S.tf.amount=this.value" value="${tf.amount}" style="border-color:${tf.result==="win"?"#00ff9d20":"#f43f5e20"}"/></div>${chips("GRADE",["A","B","C"],"grade",acc)}${chips("CATALYST",CATALYSTS,"catalyst","#a78bfa")}<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">RVOL AT ENTRY</label><input id="t_rvol" type="number" step="0.1" min="0" placeholder="e.g. 1.8" oninput="S.tf.rvol=this.value" value="${tf.rvol}"/></div><div><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">GAP % AT OPEN</label><input id="t_gap" type="number" step="0.1" placeholder="e.g. 2.1" oninput="S.tf.gap=this.value" value="${tf.gap}"/></div></div>${chips("S&P AT ENTRY",["Green","Flat","Red"],"spx","#4ecdc4")}${chips("RETEST QUALITY",["Clean","Multiple","Weak"],"retest","#ffd700")}${exitBd}${tf.result==="loss"?chips("LOSS REASON",LOSS_R,"lossReason","#f43f5e","#f43f5e"):""}<div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">NOTES</label><input id="t_notes" placeholder="Setup notes, what happened..." oninput="S.tf.notes=this.value" value="${tf.notes||""}"/></div>${S.err?`<div style="font-size:11px;color:#f43f5e;font-family:monospace;background:#f43f5e12;padding:7px 10px;border-radius:5px;margin-bottom:10px">${S.err}</div>`:""}<div style="display:flex;gap:8px"><button onclick="addTrade()" style="flex:1;background:${acc}18;border:1px solid ${acc}40;color:${acc};font-weight:700;padding:11px;font-size:11px;border-radius:6px;font-family:monospace">+ ADD TRADE</button>${pending.length>0?`<button onclick="setState({showTF:false})" style="padding:11px 14px;background:transparent;border:1px solid #1a1a35;color:#4a5568;font-size:10px;border-radius:6px;font-family:monospace">Done</button>`:""}</div></div>`:"";
   const canSave=S.addDate&&pending.length>0;
-  return`<div style="font-size:9px;letter-spacing:3px;color:${acc};margin-bottom:14px;font-family:monospace">ADD TRADING DAY · ${S.mode==="paper"?"PAPER":"LIVE"}</div><div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">DATE (DD-MM-YY)</label><input id="addDate" placeholder="e.g. 02-04-26" oninput="setState({addDate:this.value})" value="${S.addDate}"/></div>${pList}${addMoreBtn}${tfHtml}<div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">DAY NOTES</label><textarea id="dayNotes" placeholder="Market conditions, overall observations..." oninput="setState({dayNotes:this.value})">${S.dayNotes}</textarea></div><button onclick="saveDay()" class="btn-primary" style="background:${canSave?`linear-gradient(135deg,${acc}20,#4ecdc420)`:"#1a1a35"};border:1px solid ${canSave?acc+"50":"#1a1a35"};color:${canSave?acc:"#4a5568"};opacity:${canSave?1:0.5}">SAVE DAY (${pending.length} trade${pending.length!==1?"s":""})</button>`;
+  return`<div style="font-size:9px;letter-spacing:3px;color:${acc};margin-bottom:14px;font-family:monospace">ADD TRADING DAY · ${S.mode==="paper"?"PAPER":"LIVE"}</div><div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">DATE (DD-MM-YY)</label><input id="addDate" placeholder="e.g. 02-04-26" oninput="S.addDate=this.value" value="${S.addDate}"/></div>${pList}${addMoreBtn}${tfHtml}<div style="margin-bottom:12px"><label style="font-size:9px;color:#4a5568;font-family:monospace;letter-spacing:1px;display:block;margin-bottom:4px">DAY NOTES</label><textarea id="dayNotes" placeholder="Market conditions, overall observations..." oninput="S.dayNotes=this.value">${S.dayNotes}</textarea></div><button onclick="saveDay()" class="btn-primary" style="background:${canSave?`linear-gradient(135deg,${acc}20,#4ecdc420)`:"#1a1a35"};border:1px solid ${canSave?acc+"50":"#1a1a35"};color:${canSave?acc:"#4a5568"};opacity:${canSave?1:0.5}">SAVE DAY (${pending.length} trade${pending.length!==1?"s":""})</button>`;
 }
 
 function viewChecklist(){
@@ -232,7 +252,7 @@ function viewChecklist(){
 }
 
 // ── Main Render ────────────────────────────────────────────────────────────
-function render(){
+function renderApp(){
   const days=S.mode==="paper"?S.paper:S.live;
   const st=calcSt(days);
   const acc=S.mode==="paper"?"#00ff9d":"#ffd700";
@@ -248,23 +268,26 @@ function render(){
   document.getElementById("app").innerHTML=`<div style="min-height:100vh;background:#070710;max-width:900px;margin:0 auto"><div class="hdr"><div class="row" style="margin-bottom:8px"><div><div style="font-size:9px;letter-spacing:3px;color:#4a5568;font-family:monospace">ORB5 · <span style="color:${acc}">${S.mode==="paper"?"PAPER TEST":"LIVE TRADING"}</span></div><div style="font-size:18px;color:#e8edf5;font-weight:400;margin-top:1px">Trading Journal</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:700;color:${st.net>=0?acc:"#f43f5e"};font-family:monospace">£${st.bal.toFixed(2)}</div><div style="font-size:10px;color:#4a5568;font-family:monospace">${fS(st.net)} (${st.ret.toFixed(1)}%)</div></div></div><div style="display:flex;gap:5px;margin-bottom:7px">${modeBtns}</div>${progress}<div style="display:flex;overflow-x:auto">${navBtns}</div></div><div class="view">${content}</div></div>`;
 }
 
+
+function render(){ if(isAuthed()) renderApp(); else showPasswordGate(); }
+
 // ── Event Handlers ─────────────────────────────────────────────────────────
-window.setState=function(u){Object.assign(S,u);render();};
-window.setTf=function(u){Object.assign(S.tf,u);render();};
+window.setState=function(u){Object.assign(S,u);if(isAuthed()) renderApp();};
+window.setTf=function(u){Object.assign(S.tf,u);if(isAuthed()) renderApp();};
 window.toggleDay=function(id){setState({expDay:S.expDay===id?null:id});};
-window.toggleExpCk=function(key){S.expCk[key]=!S.expCk[key];render();};
+window.toggleExpCk=function(key){S.expCk[key]=!S.expCk[key];if(isAuthed()) renderApp();};
 window.toggleCk=function(id,key,perm){
   if(perm){S.cp[key]=!S.cp[key];lsS(KEYS.cp,S.cp);}
   else{S.cd[key]=!S.cd[key];saveCd();}
-  render();
+  if(isAuthed()) renderApp();
 };
-window.resetDaily=function(){S.cd={};saveCd();render();};
-window.removePending=function(i){S.pending.splice(i,1);render();};
+window.resetDaily=function(){S.cd={};saveCd();if(isAuthed()) renderApp();};
+window.removePending=function(i){S.pending.splice(i,1);if(isAuthed()) renderApp();};
 window.addTrade=function(){
   const amt=parseFloat(S.tf.amount);
   if(!S.tf.amount||isNaN(amt)||amt<=0){setState({err:"Enter a valid £ amount"});return;}
   S.pending.push({id:Date.now()+Math.random(),...S.tf,amount:parseFloat(amt.toFixed(2)),ticker:(S.tf.ticker||"").toUpperCase()});
-  S.tf={...E0};S.err="";S.showTF=false;render();
+  S.tf={...E0};S.err="";S.showTF=false;if(isAuthed()) renderApp();
 };
 window.saveDay=function(){
   if(!S.addDate){setState({err:"Date required"});return;}
@@ -272,13 +295,13 @@ window.saveDay=function(){
   const nd={id:Date.now(),date:S.addDate,imported:false,trades:[...S.pending],dayNotes:S.dayNotes};
   if(S.mode==="paper"){S.paper.push(nd);sortDays(S.paper);savePaper();}
   else{S.live.push(nd);sortDays(S.live);saveLive();}
-  S.addDate="";S.pending=[];S.dayNotes="";S.err="";S.showTF=true;S.view="journal";render();
+  S.addDate="";S.pending=[];S.dayNotes="";S.err="";S.showTF=true;S.view="journal";if(isAuthed()) renderApp();
 };
 window.delDay=function(id){
   if(!confirm("Delete this day?"))return;
   if(S.mode==="paper"){S.paper=S.paper.filter(d=>d.id!==id);savePaper();}
   else{S.live=S.live.filter(d=>d.id!==id);saveLive();}
-  S.expDay=null;render();
+  S.expDay=null;if(isAuthed()) renderApp();
 };
 
 render();
